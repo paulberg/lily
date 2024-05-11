@@ -1,0 +1,192 @@
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Hello World Website Infrastructure'
+
+Parameters:
+    BucketName:
+        Type: String
+        Description: 'Name of the S3 bucket to store the website files'
+      GitHubOwner:
+    Type: String
+    Description: 'GitHub repository owner'
+  GitHubRepo:
+    Type: String
+    Description: 'GitHub repository name'
+  GitHubBranch:
+    Type: String
+    Default: 'master'
+    Description: 'GitHub repository branch to trigger the pipeline'
+
+Resources:
+  # S3 Bucket
+  LilyWebsiteBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref BucketName
+      AccessControl: 'Private'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # CloudFront Origin Access Identity
+  LilyCloudFrontOriginAccessIdentity:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: 'Origin Access Identity for Hello World website'
+
+  # CloudFront Distribution
+  LilyWebsiteDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          ViewerProtocolPolicy: 'redirect-to-https'
+          TargetOriginId: 'WebsiteOrigin'
+          ForwardedValues:
+            QueryString: false
+        Enabled: true
+        HttpVersion: 'http2'
+        DefaultRootObject: 'index.html'
+        Origins:
+          - Id: 'WebsiteOrigin'
+            DomainName: !GetAtt LilyWebsiteBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${LilyCloudFrontOriginAccessIdentity}'
+
+  # S3 Bucket Policy
+  LilyWebsiteBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref LilyWebsiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action: 's3:GetObject'
+            Resource: !Sub 'arn:aws:s3:::${LilyWebsiteBucket}/*'
+            Principal:
+              AWS: !Sub 'arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${LilyCloudFrontOriginAccessIdentity}'
+
+  # IAM Role for CodePipeline
+  LilyCodePipelineRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'codepipeline.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'LilyCodePipelinePermissions'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:GetBucketVersioning'
+                  - 's3:PutObject'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${LilyArtifactBucket}/*'
+                  - !Sub 'arn:aws:s3:::${LilyWebsiteBucket}/*'
+              - Effect: 'Allow'
+                Action:
+                  - 'codebuild:BatchGetBuilds'
+                  - 'codebuild:StartBuild'
+                Resource: !GetAtt LilyCodeBuildProject.Arn
+
+  # IAM Role for CodeBuild
+  LilyCodeBuildRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'codebuild.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'LilyCodeBuildPermissions'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:PutObject'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${LilyArtifactBucket}/*'
+                  - !Sub 'arn:aws:s3:::${LilyWebsiteBucket}/*'
+              - Effect: 'Allow'
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${LilyCodeBuildProject}:*'
+
+  # CodeBuild Project
+  LilyCodeBuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: 'LilyHelloWorldWebsiteBuild'
+      Description: 'Build project for Hello World website'
+      ServiceRole: !GetAtt LilyCodeBuildRole.Arn
+      Artifacts:
+        Type: 'CODEPIPELINE'
+      Environment:
+        Type: 'LINUX_CONTAINER'
+        ComputeType: 'BUILD_GENERAL1_SMALL'
+        Image: 'aws/codebuild/standard:4.0'
+      Source:
+        Type: 'CODEPIPELINE'
+
+  # CodePipeline
+  LilyCodePipeline:
+    Type: 'AWS::CodePipeline::Pipeline'
+    Properties:
+      RoleArn: !GetAtt LilyCodePipelineRole.Arn
+      ArtifactStore:
+        Type: 'S3'
+        Location: !Ref LilyArtifactBucket
+      Stages:
+        - Name: 'Source'
+          Actions:
+            - Name: 'Source'
+              ActionTypeId:
+                Category: 'Source'
+                Owner: 'ThirdParty'
+                Provider: 'GitHub'
+                Version: '1'
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: '{{resolve:secretsmanager:GitHubOAuthToken:SecretString}}'
+              OutputArtifacts:
+                - Name: 'SourceOutput'
+        - Name: 'Build'
+          Actions:
+            - Name: 'Build'
+              ActionTypeId:
+                Category: 'Build'
+                Owner: 'AWS'
+                Provider: 'CodeBuild'
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref LilyCodeBuildProject
+              InputArtifacts:
+                - Name: 'SourceOutput'
+              OutputArtifacts:
+                - Name: 'BuildOutput'
