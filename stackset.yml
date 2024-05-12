@@ -11,7 +11,7 @@ Parameters:
           Type: 'String'
           Description: 'The AWS account ID where the resources will be created'
 
-      Resources:
+Resources:
   LilyHelloWorldStackRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -19,11 +19,11 @@ Parameters:
         Version: '2012-10-17'
         Statement:
           - Effect: 'Allow'
-              Principal:
-                Service: 'cloudformation.amazonaws.com'
-              Action: 'sts:AssumeRole'
+            Principal:
+              Service: 'cloudformation.amazonaws.com'
+            Action: 'sts:AssumeRole'
 
-              Policies:
+        Policies:
           - PolicyName: 'LilyHelloWorldStackPolicy'
             PolicyDocument:
               Version: '2012-10-17'
@@ -37,14 +37,14 @@ Parameters:
                     - 'arn:aws:s3:::lily-website-bucket'
                     - 'arn:aws:s3:::lily-website-bucket/*'
 
-                              - Effect: 'Allow'
+                - Effect: 'Allow'
                   Action:
                     - 'cloudfront:CreateDistribution'
                     - 'cloudfront:UpdateDistribution'
                     - 'cloudfront:CreateCloudFrontOriginAccessIdentity'
                   Resource: '*'
 
-                              - Effect: 'Allow'
+                - Effect: 'Allow'
                   Action:
                     - 'iam:CreateRole'
                     - 'iam:AttachRolePolicy'
@@ -53,19 +53,19 @@ Parameters:
                     - !Sub 'arn:aws:iam::${AWSAccountId}:role/LilyCodePipelineRole'
                     - !Sub 'arn:aws:iam::${AWSAccountId}:role/LilyCodeBuildRole'
 
-                              - Effect: 'Allow'
+                - Effect: 'Allow'
                   Action:
                     - 'codepipeline:CreatePipeline'
                     - 'codepipeline:UpdatePipeline'
                   Resource: !Sub 'arn:aws:codepipeline:${AWSRegion}:${AWSAccountId}:*'
 
-                              - Effect: 'Allow'
+                - Effect: 'Allow'
                   Action:
                     - 'codebuild:CreateProject'
                     - 'codebuild:UpdateProject'
                   Resource: !Sub 'arn:aws:codebuild:${AWSRegion}:${AWSAccountId}:project/LilyHelloWorldWebsiteBuild'
 
-                              - Effect: 'Allow'
+                - Effect: 'Allow'
                   Action:
                     - 'secretsmanager:GetSecretValue'
                   Resource: !Sub 'arn:aws:secretsmanager:${AWSRegion}:${AWSAccountId}:secret:GitHubOAuthToken-*'
@@ -74,4 +74,3 @@ Parameters:
   LilyHelloWorldStackRoleArn:
     Description: 'ARN of the IAM Role for LilyHelloWorld Stack'
     Value: !GetAtt LilyHelloWorldStackRole.Arn
-
