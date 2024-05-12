@@ -4,6 +4,15 @@
         {
             "Effect": "Allow",
             "Action": [
+                "sts:AssumeRole"
+              ],
+            "Resource": [
+                "arn:aws:iam::*:role/AWSCloudFormationStackSetAdministrationRole"
+              ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
                 "cloudformation:CreateStack",
                 "cloudformation:UpdateStack",
                 "cloudformation:DeleteStack",
