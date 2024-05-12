@@ -41,10 +41,9 @@ while [[ $# -gt 0 ]]; do
   esac
   done
 
-# Validate required parameters
+# Set the default target account ID if not provided
 if [ -z "$TARGET_ACCOUNT_IDS" ]; then
-  echo "Error: Target account IDs are required. Use the -a or --accounts parameter."
-    exit 1
+    TARGET_ACCOUNT_IDS=$(aws sts get-caller-identity --query 'Account' --output text)
   fi
 
 # Set the parameter overrides (if any)
