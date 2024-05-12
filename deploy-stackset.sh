@@ -92,20 +92,12 @@ if aws cloudformation describe-stack-set --stack-set-name $STACKSET_NAME --regio
       --stack-set-name $STACKSET_NAME \
       --template-body file://$TEMPLATE_FILE \
       --parameters $PARAMETERS \
-      --permission-model SERVICE_MANAGED \
-      --auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false \
-      --administration-role-arn $(aws iam get-role --role-name $ROLE_NAME --query 'Role.Arn' --output text) \
-      --region $AWS_REGION \
-      --no-execute-changeset
+      --permission-model SELF_MANAGED \
+      --capabilities CAPABILITY_IAM \
+      --region $AWS_REGION
   fi
 
-# Wait for the StackSet operation to complete
-aws cloudformation wait stack-set-operation-complete \
-  --stack-set-name $STACKSET_NAME \
-  --operation-id $(aws cloudformation list-stack-set-operations --stack-set-name $STACKSET_NAME --query 'Summaries[0].OperationId' --output text) \
-  --region $AWS_REGION
-
-# Create or update stack instances in the target accounts and regions  
+# Create stack instances in the target accounts and regions
 OPERATION_ID=$(aws cloudformation create-stack-instances \
   --stack-set-name $STACKSET_NAME \
   --accounts $TARGET_ACCOUNT_IDS \
@@ -113,14 +105,26 @@ OPERATION_ID=$(aws cloudformation create-stack-instances \
   --operation-preferences FailureToleranceCount=0,MaxConcurrentCount=1 \
   --query 'OperationId' \
   --output text \
-  --region $AWS_REGION 2>/dev/null) || true
+  --region $AWS_REGION)
 
-if [ -n "$OPERATION_ID" ]; then
-  echo "Waiting for stack instance creation/update to complete..."
-  aws cloudformation wait stack-set-operation-complete \
+# Wait for the stack instance creation to complete
+echo "Waiting for stack instance creation to complete..."
+while true; do
+  STATUS=$(aws cloudformation describe-stack-set-operation \
     --stack-set-name $STACKSET_NAME \
     --operation-id $OPERATION_ID \
-    --region $AWS_REGION
-else
-  echo "No new stack instances to create/update."  
-fi
+    --query 'StackSetOperation.Status' \
+    --output text \
+    --region $AWS_REGION)
+
+  if [[ $STATUS == "SUCCEEDED" ]]; then
+    echo "Stack instance creation completed successfully."
+    break
+  elif [[ $STATUS == "FAILED" || $STATUS == "STOPPED" ]]; then
+    echo "Stack instance creation failed or stopped. Please check the AWS Management Console for more details."
+    break
+  else
+    echo "Stack instance creation is still in progress. Waiting for 10 seconds..."
+    sleep 10
+  fi
+done
