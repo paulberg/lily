@@ -7,10 +7,6 @@ Parameters:
         Description: 'The AWS region where the resources will be created'
         Default: 'us-west-2'
 
-        AWSAccountId:
-          Type: 'String'
-          Description: 'The AWS account ID where the resources will be created'
-
 Resources:
   LilyHelloWorldStackRole:
     Type: 'AWS::IAM::Role'
@@ -50,25 +46,25 @@ Resources:
                     - 'iam:AttachRolePolicy'
                     - 'iam:PutRolePolicy'
                   Resource:
-                    - !Sub 'arn:aws:iam::${AWSAccountId}:role/LilyCodePipelineRole'
-                    - !Sub 'arn:aws:iam::${AWSAccountId}:role/LilyCodeBuildRole'
+                    - !Sub 'arn:aws:iam::${AWS::AccountId}:role/LilyCodePipelineRole'
+                    - !Sub 'arn:aws:iam::${AWS::AccountId}:role/LilyCodeBuildRole'
 
                 - Effect: 'Allow'
                   Action:
                     - 'codepipeline:CreatePipeline'
                     - 'codepipeline:UpdatePipeline'
-                  Resource: !Sub 'arn:aws:codepipeline:${AWSRegion}:${AWSAccountId}:*'
+                  Resource: !Sub 'arn:aws:codepipeline:${AWSRegion}:${AWS::AccountId}:*'
 
                 - Effect: 'Allow'
                   Action:
                     - 'codebuild:CreateProject'
                     - 'codebuild:UpdateProject'
-                  Resource: !Sub 'arn:aws:codebuild:${AWSRegion}:${AWSAccountId}:project/LilyHelloWorldWebsiteBuild'
+                  Resource: !Sub 'arn:aws:codebuild:${AWSRegion}:${AWS::AccountId}:project/LilyHelloWorldWebsiteBuild'
 
                 - Effect: 'Allow'
                   Action:
                     - 'secretsmanager:GetSecretValue'
-                  Resource: !Sub 'arn:aws:secretsmanager:${AWSRegion}:${AWSAccountId}:secret:GitHubOAuthToken-*'
+                  Resource: !Sub 'arn:aws:secretsmanager:${AWSRegion}:${AWS::AccountId}:secret:GitHubOAuthToken-*'
 
 Outputs:
   LilyHelloWorldStackRoleArn:
