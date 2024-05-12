@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAM Role for LilyHelloWorld Stack'
+
+Parameters:
+    AWSRegion:
+        Type: 'String'
+        Description: 'The AWS region where the resources will be created'
+        Default: 'us-west-2'
+
+        AWSAccountId:
+          Type: 'String'
+          Description: 'The AWS account ID where the resources will be created'
+
+      Resources:
+  LilyHelloWorldStackRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+              Principal:
+                Service: 'cloudformation.amazonaws.com'
+              Action: 'sts:AssumeRole'
+
+              Policies:
+          - PolicyName: 'LilyHelloWorldStackPolicy'
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: 'Allow'
+                  Action:
+                    - 's3:CreateBucket'
+                    - 's3:PutBucketPolicy'
+                    - 's3:PutObject'
+                  Resource:
+                    - 'arn:aws:s3:::lily-website-bucket'
+                    - 'arn:aws:s3:::lily-website-bucket/*'
+
+                              - Effect: 'Allow'
+                  Action:
+                    - 'cloudfront:CreateDistribution'
+                    - 'cloudfront:UpdateDistribution'
+                    - 'cloudfront:CreateCloudFrontOriginAccessIdentity'
+                  Resource: '*'
+
+                              - Effect: 'Allow'
+                  Action:
+                    - 'iam:CreateRole'
+                    - 'iam:AttachRolePolicy'
+                    - 'iam:PutRolePolicy'
+                  Resource:
+                    - !Sub 'arn:aws:iam::${AWSAccountId}:role/LilyCodePipelineRole'
+                    - !Sub 'arn:aws:iam::${AWSAccountId}:role/LilyCodeBuildRole'
+
+                              - Effect: 'Allow'
+                  Action:
+                    - 'codepipeline:CreatePipeline'
+                    - 'codepipeline:UpdatePipeline'
+                  Resource: !Sub 'arn:aws:codepipeline:${AWSRegion}:${AWSAccountId}:*'
+
+                              - Effect: 'Allow'
+                  Action:
+                    - 'codebuild:CreateProject'
+                    - 'codebuild:UpdateProject'
+                  Resource: !Sub 'arn:aws:codebuild:${AWSRegion}:${AWSAccountId}:project/LilyHelloWorldWebsiteBuild'
+
+                              - Effect: 'Allow'
+                  Action:
+                    - 'secretsmanager:GetSecretValue'
+                  Resource: !Sub 'arn:aws:secretsmanager:${AWSRegion}:${AWSAccountId}:secret:GitHubOAuthToken-*'
+
+  Outputs:
+  LilyHelloWorldStackRoleArn:
+    Description: 'ARN of the IAM Role for LilyHelloWorld Stack'
+    Value: !GetAtt LilyHelloWorldStackRole.Arn
+
