@@ -1,0 +1,64 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:CreateStack",
+                "cloudformation:UpdateStack",
+                "cloudformation:DeleteStack",
+                "cloudformation:DescribeStacks",
+                "cloudformation:DescribeStackEvents",
+                "cloudformation:DescribeStackResource",
+                "cloudformation:DescribeStackResources"
+              ],
+            "Resource": [
+                "arn:aws:cloudformation:*:*:stack/LilyHelloWorldStackSet-*"
+              ]
+          },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:CreateStackSet",
+                "cloudformation:UpdateStackSet",
+                "cloudformation:DeleteStackSet",
+                "cloudformation:CreateStackInstances",
+                "cloudformation:UpdateStackInstances",
+                "cloudformation:DeleteStackInstances",
+                "cloudformation:DescribeStackSet",
+                "cloudformation:DescribeStackInstance",
+                "cloudformation:ListStackInstances"
+              ],
+            "Resource": [
+                "arn:aws:cloudformation:*:*:stackset/LilyHelloWorldStackSet:*"
+              ]
+          },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "iam:PassRole",
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:GetRole",
+                "iam:DeleteRole",
+                "iam:DetachRolePolicy",
+                "iam:DeleteRolePolicy"
+              ],
+            "Resource": [
+                "arn:aws:iam::*:role/LilyHelloWorldStackSet-*"
+              ]
+          },
+        {
+            "Effect": "Deny",
+            "Action": [
+                "cloudformation:DeleteStack",
+                "cloudformation:DeleteStackSet"  
+              ],
+            "Resource": [
+                "arn:aws:cloudformation:*:*:stack/LilyHelloWorldStackSet-prod-*",
+                "arn:aws:cloudformation:*:*:stackset/LilyHelloWorldStackSet-prod:*"
+              ]
+          }
+      ]
+  }
