@@ -48,9 +48,7 @@ if [ -z "$TARGET_ACCOUNT_IDS" ]; then
 fi
 
 # Check if the role already exists
-aws iam get-role --role-name $ROLE_NAME > /dev/null 2>&1
-
-if [ $? -ne 0 ]; then
+aws iam get-role --role-name $ROLE_NAME > /dev/null 2>&1 || {
   echo "Creating role $ROLE_NAME..."
 
     # Define the trust policy for the role
@@ -72,12 +70,10 @@ EOF
 
   # Create the role
   aws iam create-role --role-name $ROLE_NAME --assume-role-policy-document "$TRUST_POLICY"
-else
-  echo "Role $ROLE_NAME already exists, skipping creation."
-fi
+}
 
 # Attach or update the permissions policy on the role
-aws iam put-role-policy --role-name $ROLE_NAME --policy-name StackSetExecutionPolicy --policy-document file://stackset-execution-policy.json --overwrite
+aws iam put-role-policy --role-name $ROLE_NAME --policy-name StackSetExecutionPolicy --policy-document file://stackset-execution-policy.json
 
 # Set the parameter overrides (if any)
 PARAMETERS='ParameterKey=AWSRegion,ParameterValue='$AWS_REGION
