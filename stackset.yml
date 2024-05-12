@@ -70,7 +70,7 @@ Resources:
                     - 'secretsmanager:GetSecretValue'
                   Resource: !Sub 'arn:aws:secretsmanager:${AWSRegion}:${AWSAccountId}:secret:GitHubOAuthToken-*'
 
-  Outputs:
+Outputs:
   LilyHelloWorldStackRoleArn:
     Description: 'ARN of the IAM Role for LilyHelloWorld Stack'
     Value: !GetAtt LilyHelloWorldStackRole.Arn
