@@ -79,15 +79,25 @@ aws iam put-role-policy --role-name $ROLE_NAME --policy-name StackSetExecutionPo
 PARAMETERS='ParameterKey=AWSRegion,ParameterValue='$AWS_REGION
 
 # Create or update the StackSet
-aws cloudformation create-stack-set \
-  --stack-set-name $STACKSET_NAME \
-  --template-body file://$TEMPLATE_FILE \
-  --parameters $PARAMETERS \
-  --permission-model SERVICE_MANAGED \
-  --auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false \
-  --administration-role-arn $(aws iam get-role --role-name $ROLE_NAME --query 'Role.Arn' --output text) \
-  --region $AWS_REGION \
-  --no-execute-changeset 2>/dev/null || aws cloudformation update-stack-set --stack-set-name $STACKSET_NAME --use-previous-template --parameters $PARAMETERS --region $AWS_REGION
+if aws cloudformation describe-stack-set --stack-set-name $STACKSET_NAME --region $AWS_REGION >/dev/null 2>&1; then
+    # Stack set exists, update it
+    aws cloudformation update-stack-set \
+      --stack-set-name $STACKSET_NAME \
+      --use-previous-template \
+      --parameters $PARAMETERS \
+      --region $AWS_REGION
+  else
+    # Stack set doesn't exist, create it
+    aws cloudformation create-stack-set \
+      --stack-set-name $STACKSET_NAME \
+      --template-body file://$TEMPLATE_FILE \
+      --parameters $PARAMETERS \
+      --permission-model SERVICE_MANAGED \
+      --auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false \
+      --administration-role-arn $(aws iam get-role --role-name $ROLE_NAME --query 'Role.Arn' --output text) \
+      --region $AWS_REGION \
+      --no-execute-changeset
+  fi
 
 # Wait for the StackSet operation to complete
 aws cloudformation wait stack-set-operation-complete \
