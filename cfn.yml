@@ -3,10 +3,10 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Hello World Website Infrastructure'
 
 Parameters:
-    BucketName:
-        Type: String
-        Description: 'Name of the S3 bucket to store the website files'
-      GitHubOwner:
+  BucketName:
+    Type: String
+    Description: 'Name of the S3 bucket to store the website files'
+  GitHubOwner:
     Type: String
     Description: 'GitHub repository owner'
   GitHubRepo:
@@ -14,7 +14,7 @@ Parameters:
     Description: 'GitHub repository name'
   GitHubBranch:
     Type: String
-    Default: 'master'
+    Default: 'main'
     Description: 'GitHub repository branch to trigger the pipeline'
 
 Resources:
