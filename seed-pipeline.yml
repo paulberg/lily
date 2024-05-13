@@ -12,10 +12,9 @@ Parameters:
     Type: String 
     Default: main
     Description: 'The GitHub branch to use'
-  GitHubToken:
+  GitHubTokenSecretName:
     Type: String
-    NoEcho: true 
-    Description: 'The GitHub OAuth token with repository access'
+    Description: 'The name of the SecretManager secret holding the GitHub OAuth token'
 
 Resources:
   CodePipeline:
@@ -31,150 +30,154 @@ Resources:
             - Name: TemplateSource
               ActionTypeId:
                 Category: Source
-                Owner: ThirdParty
+                Owner: ThirdParty  
                 Provider: GitHub
                 Version: 1
               Configuration:
                 Owner: !Ref GitHubOwner
-                Repo: !Ref GitHubRepo 
+                Repo: !Ref GitHubRepo
                 Branch: !Ref GitHubBranch
-                OAuthToken: !Ref GitHubToken
+                OAuthToken: !Sub '{{resolve:secretsmanager:${GitHubTokenSecretName}}}'
               OutputArtifacts:
-                - Name: TemplateOutput
+                - Name: TemplateOutput  
               RoleArn: !GetAtt SourceStageRole.Arn
-        - Name: Deploy 
+        - Name: Deploy
           Actions:
             - Name: CreateStack
               ActionTypeId:
                 Category: Deploy
-                Owner: AWS 
+                Owner: AWS
                 Provider: CloudFormation
                 Version: 1
               InputArtifacts:
                 - Name: TemplateOutput
               Configuration:
-                ActionMode: CREATE_UPDATE
+                ActionMode: CREATE_UPDATE 
                 StackName: !Ref AWS::StackName
-                TemplatePath: TemplateOutput::template.yml
+                TemplatePath: TemplateOutput::template.yml  
                 Capabilities: CAPABILITY_NAMED_IAM
               RoleArn: !GetAtt DeployStageRole.Arn
               
   ArtifactStoreBucket:
-    Type: 'AWS::S3::Bucket'
+    Type: 'AWS::S3::Bucket' 
     Properties:
       VersioningConfiguration:
         Status: Enabled
       LifecycleConfiguration:
         Rules:
           - Id: DeleteOldVersions
-            NoncurrentVersionExpirationInDays: 1
+            NoncurrentVersionExpirationInDays: 1  
             Status: Enabled
           - Id: AbortIncompleteUploads
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 1
             Status: Enabled
-      PublicAccessBlockConfiguration: 
+      PublicAccessBlockConfiguration:
         BlockPublicAcls: true
-        BlockPublicPolicy: true
+        BlockPublicPolicy: true 
         IgnorePublicAcls: true
-        RestrictPublicBuckets: true  
-      BucketEncryption:
+        RestrictPublicBuckets: true
+      BucketEncryption: 
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
-
+              
   CodePipelineRole:
-    Type: 'AWS::IAM::Role' 
+    Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Effect: Allow
+          - Effect: Allow 
             Principal:
               Service: codepipeline.amazonaws.com
             Action: 'sts:AssumeRole'
-      ManagedPolicyArns:
+      ManagedPolicyArns:  
         - 'arn:aws:iam::aws:policy/AWSCodePipelineReadOnlyAccess'
         
-  SourceStageRole:
-    Type: 'AWS::IAM::Role'
-    Properties: 
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: codepipeline.amazonaws.com
-            Action: 'sts:AssumeRole'
-      Policies:
-        - PolicyName: SourceStageAccess
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow 
-                Action:
-                  - 's3:PutObject'
-                  - 's3:GetObject'
-                  - 's3:GetObjectVersion'
-                Resource: !Sub 'arn:aws:s3:::${ArtifactStoreBucket}/*'
-                  
-  DeployStageRole:
+  SourceStageRole:  
     Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument: 
         Version: 2012-10-17
         Statement:
           - Effect: Allow
-            Principal: 
-              Service: codepipeline.amazonaws.com  
-            Action: 'sts:AssumeRole'
+            Principal:  
+              Service: codepipeline.amazonaws.com
+            Action: 'sts:AssumeRole' 
       Policies:
-        - PolicyName: DeployStageAccess
+        - PolicyName: SourceStageAccess
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Effect: Allow
                 Action: 
-                  - 'cloudformation:CreateStack'
-                  - 'cloudformation:DescribeStacks' 
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'  
+                Resource: !Sub 'arn:aws:s3:::${ArtifactStoreBucket}/*'
+              - Effect: Allow 
+                Action:
+                  - 'secretsmanager:GetSecretValue' 
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${GitHubTokenSecretName}-*'
+                  
+  DeployStageRole:
+    Type: 'AWS::IAM::Role'
+    Properties:  
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17 
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: DeployStageAccess 
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'cloudformation:CreateStack' 
+                  - 'cloudformation:DescribeStacks'
                   - 'cloudformation:UpdateStack'
                   - 'cloudformation:CreateChangeSet'
-                  - 'cloudformation:ExecuteChangeSet'
+                  - 'cloudformation:ExecuteChangeSet'  
                   - 'cloudformation:DescribeChangeSet'
-                Resource: 
-                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*'
-                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'
+                Resource:
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*' 
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31'  
               - Effect: Allow
-                Action: 
+                Action:
                   - 's3:GetObject'
                   - 's3:GetObjectVersion'
-                Resource: !Sub 'arn:aws:s3:::${ArtifactStoreBucket}/*'
-              - Effect: Allow  
-                Action: 'iam:PassRole'
-                Resource: '*' 
+                Resource: !Sub 'arn:aws:s3:::${ArtifactStoreBucket}/*'  
+              - Effect: Allow
+                Action: 'iam:PassRole' 
+                Resource: '*'
                 Condition:
                   StringEquals:
                     'iam:PassedToService': 'cloudformation.amazonaws.com'
         - PolicyName: DenyIAMPermissions
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:  
-              - Effect: Deny
-                Action:
-                  - 'iam:Create*' 
-                  - 'iam:Update*'
-                  - 'iam:Delete*'
-                  - 'iam:Attach*' 
-                  - 'iam:Detach*'
-                  - 'iam:Put*'
-                Resource: '*'
-        - PolicyName: DenyCloudFormationPermissions
-          PolicyDocument:
+          PolicyDocument: 
             Version: 2012-10-17
             Statement:
               - Effect: Deny 
                 Action:
+                  - 'iam:Create*'  
+                  - 'iam:Update*'
+                  - 'iam:Delete*'
+                  - 'iam:Attach*' 
+                  - 'iam:Detach*'
+                  - 'iam:Put*' 
+                Resource: '*'
+        - PolicyName: DenyCloudFormationPermissions
+          PolicyDocument:
+            Version: 2012-10-17 
+            Statement:
+              - Effect: Deny
+                Action: 
                   - 'cloudformation:CreateUploadBucket'
-                  - 'cloudformation:DeleteStack' 
-                  - 'cloudformation:SetStackPolicy'
+                  - 'cloudformation:DeleteStack'
+                  - 'cloudformation:SetStackPolicy'  
                 Resource: '*'
