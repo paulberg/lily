@@ -37,7 +37,7 @@ Resources:
                 Owner: !Ref GitHubOwner
                 Repo: !Ref GitHubRepo
                 Branch: !Ref GitHubBranch
-                OAuthToken: !Sub '{{resolve:secretsmanager:${GitHubTokenSecretName}}}'
+                OAuthToken: !Sub '{{resolve:secretsmanager:${GitHubTokenSecretName}:SecretString:token}}'
               OutputArtifacts:
                 - Name: TemplateOutput  
               RoleArn: !GetAtt SourceStageRole.Arn

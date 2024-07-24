@@ -126,7 +126,8 @@ else
 fi
 
 # Assume the execution role
-ASSUMED_ROLE=$(aws sts assume-role --role-arn arn:aws:iam::$TARGET_ACCOUNT_IDS:role/AWSCloudFormationStackSetExecutionRole --role-session-name StackSetExecutionSession --query 'Credentials.{AccessKeyId:AccessKeyId,SecretAccessKey:SecretAccessKey,SessionToken:SessionToken}' --output json)
+#ASSUMED_ROLE=$(aws sts assume-role --role-arn arn:aws:iam::$TARGET_ACCOUNT_IDS:role/AWSCloudFormationStackSetExecutionRole --role-session-name StackSetExecutionSession --query 'Credentials.{AccessKeyId:AccessKeyId,SecretAccessKey:SecretAccessKey,SessionToken:SessionToken}' --output json)
+ASSUMED_ROLE=$(aws sts assume-role --role-arn arn:aws:iam::$TARGET_ACCOUNT_IDS:role/AWSCloudFormationStackSetAdministrationRole --role-session-name StackSetAdministrationSession --query 'Credentials.{AccessKeyId:AccessKeyId,SecretAccessKey:SecretAccessKey,SessionToken:SessionToken}' --output json)
 
 # Extract the access key, secret key, and session token from the assumed role
 ACCESS_KEY=$(echo $ASSUMED_ROLE | jq -r '.AccessKeyId')
@@ -147,7 +148,7 @@ OPERATION_ID=$(aws cloudformation create-stack-instances \
                     --access-key-id $ACCESS_KEY \
                       --secret-access-key $SECRET_KEY \
                         --session-token $SESSION_TOKEN)
-                        
+
 # Wait for the stack instance creation to complete
 echo "Waiting for stack instance creation to complete..."
 while true; do
